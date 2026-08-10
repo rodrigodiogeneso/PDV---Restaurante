@@ -660,7 +660,7 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
   .comanda-layout.somente-leitura { max-width: none; }
-  .resumo { position: static; max-height: none; overflow-y: visible; }
+  .resumo { position: static; max-height: none; overflow-y: visible; order: -1; }
   .produtos-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
   .produto-card { padding: 14px 12px; }
   .busca-produto { font-size: 16px; }
