@@ -83,6 +83,10 @@ const ACAO_LABELS = {
   usuario_criado: 'Usuário criado',
   usuario_editado: 'Usuário editado',
   usuario_removido: 'Usuário removido',
+  caixa_aberto: 'Caixa aberto',
+  caixa_fechado: 'Caixa fechado',
+  impressora_criada: 'Impressora criada',
+  impressora_editada: 'Impressora editada',
 };
 
 function acaoLabel(acao) {

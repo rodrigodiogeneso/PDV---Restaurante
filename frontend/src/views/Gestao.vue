@@ -1,7 +1,29 @@
 <template>
   <div class="container gestao">
-    <section class="card">
-      <p class="titulo">Produtos</p>
+    <!-- Menu inicial: escolhe qual área gerenciar -->
+    <div v-if="!secaoAtiva" class="menu-gestao">
+      <button class="menu-card" @click="secaoAtiva = 'cardapio'">
+        <span class="menu-icone">🍽️</span>
+        <span class="menu-titulo">Cardápio</span>
+        <span class="menu-sub">{{ produtos.length }} produtos · {{ categorias.length }} categorias</span>
+      </button>
+      <button class="menu-card" @click="secaoAtiva = 'impressoras'">
+        <span class="menu-icone">🖨️</span>
+        <span class="menu-titulo">Impressoras</span>
+        <span class="menu-sub">{{ impressoras.length }} cadastradas</span>
+      </button>
+      <button class="menu-card" @click="secaoAtiva = 'usuarios'">
+        <span class="menu-icone">👥</span>
+        <span class="menu-titulo">Usuários</span>
+        <span class="menu-sub">{{ usuarios.length }} usuários</span>
+      </button>
+    </div>
+
+    <template v-else>
+      <button class="btn-voltar" @click="secaoAtiva = null">← Voltar</button>
+
+    <section v-if="secaoAtiva === 'cardapio'" class="card">
+      <p class="titulo">Cardápio</p>
 
       <div class="form-linha">
         <input v-model="novoProduto.nome" placeholder="Nome do produto" />
@@ -87,7 +109,62 @@
         </div>
     </section>
 
-    <section class="card">
+    <section v-if="secaoAtiva === 'impressoras'" class="card">
+      <p class="titulo">Impressoras</p>
+
+      <div class="form-linha">
+        <input v-model="novaImpressora.nome" placeholder="Nome (ex: Impressora cozinha)" />
+        <select v-model="novaImpressora.setor">
+          <option value="cozinha">Cozinha</option>
+          <option value="bar">Bar / Caixa</option>
+        </select>
+        <input v-model="novaImpressora.ip" placeholder="IP (ex: 192.168.0.101)" />
+        <input v-model.number="novaImpressora.porta" type="number" placeholder="Porta" />
+        <button @click="criarImpressora">Adicionar</button>
+      </div>
+
+      <div class="tabela-wrap">
+        <table>
+        <thead>
+          <tr><th>Nome</th><th>Setor</th><th>IP</th><th>Porta</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="i in impressoras" :key="i.id" :class="{ inativo: !i.ativa }">
+            <template v-if="edicaoImpressoraId === i.id">
+              <td><input v-model="edicaoImpressora.nome" /></td>
+              <td>
+                <select v-model="edicaoImpressora.setor">
+                  <option value="cozinha">Cozinha</option>
+                  <option value="bar">Bar / Caixa</option>
+                </select>
+              </td>
+              <td><input v-model="edicaoImpressora.ip" /></td>
+              <td><input v-model.number="edicaoImpressora.porta" type="number" /></td>
+              <td>{{ i.ativa ? 'Ativa' : 'Inativa' }}</td>
+              <td class="acoes">
+                <button @click="salvarImpressora(i.id)">Salvar</button>
+                <button @click="edicaoImpressoraId = null">Cancelar</button>
+              </td>
+            </template>
+            <template v-else>
+              <td>{{ i.nome }}</td>
+              <td>{{ i.setor === 'cozinha' ? 'Cozinha' : 'Bar / Caixa' }}</td>
+              <td>{{ i.ip }}</td>
+              <td>{{ i.porta }}</td>
+              <td>{{ i.ativa ? 'Ativa' : 'Inativa' }}</td>
+              <td class="acoes">
+                <button @click="iniciarEdicaoImpressora(i)">Editar</button>
+                <button @click="alternarAtivaImpressora(i)">{{ i.ativa ? 'Desativar' : 'Ativar' }}</button>
+              </td>
+            </template>
+          </tr>
+          <tr v-if="!impressoras.length"><td colspan="6" class="vazio">Nenhuma impressora cadastrada.</td></tr>
+        </tbody>
+      </table>
+        </div>
+    </section>
+
+    <section v-if="secaoAtiva === 'usuarios'" class="card">
       <p class="titulo">Usuários</p>
 
       <div class="form-linha">
@@ -140,6 +217,7 @@
       </table>
         </div>
     </section>
+    </template>
   </div>
 </template>
 
@@ -155,9 +233,11 @@ const PAPEL_LABELS = {
   bar: 'Bar',
 };
 
+const secaoAtiva = ref(null);
 const categorias = ref([]);
 const produtos = ref([]);
 const usuarios = ref([]);
+const impressoras = ref([]);
 
 const novoProduto = reactive({ nome: '', preco: null, categoria_id: null, setor_impressao: 'cozinha' });
 const filtro = reactive({ busca: '', categoriaId: '', setor: '', status: '' });
@@ -180,6 +260,10 @@ const novoUsuario = reactive({ nome: '', email: '', senha: '', papel: 'garcom' }
 const edicaoUsuarioId = ref(null);
 const edicaoUsuario = reactive({ nome: '', papel: 'garcom' });
 
+const novaImpressora = reactive({ nome: '', setor: 'cozinha', ip: '', porta: 9100 });
+const edicaoImpressoraId = ref(null);
+const edicaoImpressora = reactive({ nome: '', setor: 'cozinha', ip: '', porta: 9100 });
+
 function papelLabel(papel) {
   return PAPEL_LABELS[papel] || papel;
 }
@@ -195,6 +279,10 @@ async function carregarProdutos() {
 async function carregarUsuarios() {
   const { data } = await api.get('/usuarios');
   usuarios.value = data;
+}
+async function carregarImpressoras() {
+  const { data } = await api.get('/impressoras');
+  impressoras.value = data;
 }
 
 async function criarCategoria() {
@@ -257,10 +345,34 @@ async function removerUsuario(u) {
   await carregarUsuarios();
 }
 
+async function criarImpressora() {
+  if (!novaImpressora.nome || !novaImpressora.ip) return;
+  await api.post('/impressoras', { ...novaImpressora });
+  novaImpressora.nome = '';
+  novaImpressora.ip = '';
+  novaImpressora.porta = 9100;
+  await carregarImpressoras();
+}
+
+function iniciarEdicaoImpressora(i) {
+  edicaoImpressoraId.value = i.id;
+  Object.assign(edicaoImpressora, { nome: i.nome, setor: i.setor, ip: i.ip, porta: i.porta });
+}
+async function salvarImpressora(id) {
+  await api.put(`/impressoras/${id}`, { ...edicaoImpressora });
+  edicaoImpressoraId.value = null;
+  await carregarImpressoras();
+}
+async function alternarAtivaImpressora(i) {
+  await api.put(`/impressoras/${i.id}`, { ativa: i.ativa ? 0 : 1 });
+  await carregarImpressoras();
+}
+
 onMounted(() => {
   carregarCategorias();
   carregarProdutos();
   carregarUsuarios();
+  carregarImpressoras();
 });
 </script>
 
@@ -269,6 +381,26 @@ onMounted(() => {
 .card {
   background: white; border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px;
 }
+
+.menu-gestao {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;
+}
+.menu-card {
+  background: white; border: 1px solid #e0e0e0; border-radius: 14px; padding: 28px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  cursor: pointer; transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.menu-card:hover { border-color: #0f6e56; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+.menu-card:active { transform: scale(0.98); }
+.menu-icone { font-size: 32px; }
+.menu-titulo { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.menu-sub { font-size: 12px; color: #888; }
+
+.btn-voltar {
+  align-self: flex-start; background: none; border: none; color: #0f6e56; font-size: 14px;
+  font-weight: 500; cursor: pointer; padding: 4px 0; margin-bottom: -4px;
+}
+.btn-voltar:hover { text-decoration: underline; }
 .titulo { font-weight: 500; margin: 0 0 12px; }
 .subtitulo { font-size: 13px; color: #666; margin: 16px 0 8px; }
 

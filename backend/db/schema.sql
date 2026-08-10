@@ -106,6 +106,16 @@ CREATE TABLE IF NOT EXISTS pagamentos (
   criado_em TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS caixa_sessoes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  restaurante_id INTEGER NOT NULL REFERENCES restaurantes(id),
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+  valor_abertura REAL NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'aberto' CHECK (status IN ('aberto','fechado')),
+  aberto_em TEXT DEFAULT CURRENT_TIMESTAMP,
+  fechado_em TEXT
+);
+
 CREATE TABLE IF NOT EXISTS auditoria (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   restaurante_id INTEGER NOT NULL REFERENCES restaurantes(id),
@@ -123,3 +133,4 @@ CREATE INDEX IF NOT EXISTS idx_comandas_mesa ON comandas(mesa_id);
 CREATE INDEX IF NOT EXISTS idx_mesas_restaurante ON mesas(restaurante_id);
 CREATE INDEX IF NOT EXISTS idx_auditoria_criado_em ON auditoria(criado_em);
 CREATE INDEX IF NOT EXISTS idx_pagamentos_comanda ON pagamentos(comanda_id);
+CREATE INDEX IF NOT EXISTS idx_caixa_sessoes_restaurante_status ON caixa_sessoes(restaurante_id, status);

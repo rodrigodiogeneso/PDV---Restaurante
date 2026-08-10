@@ -10,6 +10,8 @@ const pedidosRouter = require('./routes/pedidos');
 const usuariosRouter = require('./routes/usuarios');
 const auditoriaRouter = require('./routes/auditoria');
 const relatoriosRouter = require('./routes/relatorios');
+const caixaRouter = require('./routes/caixa');
+const impressorasRouter = require('./routes/impressoras');
 
 const app = express();
 
@@ -28,5 +30,7 @@ app.use('/api/pedidos', pedidosRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/auditoria', auditoriaRouter);
 app.use('/api/relatorios', relatoriosRouter);
+app.use('/api/caixa', caixaRouter);
+app.use('/api/impressoras', impressorasRouter);
 
 module.exports = app;
