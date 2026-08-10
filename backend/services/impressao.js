@@ -36,12 +36,24 @@ function buscarNumeroMesa(mesaId) {
   return db.prepare('SELECT numero FROM mesas WHERE id = ?').get(mesaId)?.numero ?? mesaId;
 }
 
+function buscarNomeRestaurante(restauranteId) {
+  return db.prepare('SELECT nome FROM restaurantes WHERE id = ?').get(restauranteId)?.nome ?? '';
+}
+
+const FORMA_PAGAMENTO_LABELS = {
+  dinheiro: 'Dinheiro',
+  cartao_credito: 'Cartão de Crédito',
+  cartao_debito: 'Cartão de Débito',
+  pix: 'PIX',
+};
+
 async function imprimirItens(setor, comanda, itens) {
   const printer = await conectarImpressora(setor);
   if (!printer) return;
 
   printer.alignCenter();
   printer.bold(true);
+  printer.println(buscarNomeRestaurante(comanda.restaurante_id));
   printer.println(setor === 'cozinha' ? 'COZINHA' : 'BAR');
   printer.bold(false);
   printer.println(`Mesa ${buscarNumeroMesa(comanda.mesa_id)}${comanda.nome_cliente ? ' - ' + comanda.nome_cliente : ''}`);
@@ -63,10 +75,11 @@ async function imprimirConta(comanda, itens, valores) {
   const printer = await conectarImpressora('bar');
   if (!printer) return;
 
-  const { subtotal, total, desconto, descontoTipo, descontoValor } = valores;
+  const { subtotal, total, desconto, descontoTipo, descontoValor, pagamentos } = valores;
 
   printer.alignCenter();
   printer.bold(true);
+  printer.println(buscarNomeRestaurante(comanda.restaurante_id));
   printer.println('PRÉ-CONTA');
   printer.bold(false);
   printer.println(`Mesa ${buscarNumeroMesa(comanda.mesa_id)}${comanda.nome_cliente ? ' - ' + comanda.nome_cliente : ''}`);
@@ -87,8 +100,17 @@ async function imprimirConta(comanda, itens, valores) {
   printer.bold(true);
   printer.println(`Total: R$ ${total.toFixed(2)}`);
   printer.bold(false);
-  printer.drawLine();
 
+  if (pagamentos && pagamentos.length) {
+    printer.drawLine();
+    printer.println(pagamentos.length > 1 ? 'Pagamento (dividido):' : 'Forma de pagamento:');
+    pagamentos.forEach((p) => {
+      const label = FORMA_PAGAMENTO_LABELS[p.forma_pagamento] || p.forma_pagamento;
+      printer.println(`  ${label}: R$ ${p.valor.toFixed(2)}`);
+    });
+  }
+
+  printer.drawLine();
   printer.alignCenter();
   printer.println('Não é documento fiscal');
   printer.cut();

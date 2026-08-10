@@ -301,7 +301,11 @@ router.post('/:id/imprimir-conta', exigirPapel('admin', 'garcom', 'caixa'), asyn
 
   const total = subtotal - desconto;
 
-  await imprimirConta(comanda, itens, { subtotal, total, desconto, descontoTipo: comanda.desconto_tipo, descontoValor: comanda.desconto_valor }).catch((erro) => {
+  const pagamentos = db
+    .prepare('SELECT forma_pagamento, valor FROM pagamentos WHERE comanda_id = ? ORDER BY criado_em')
+    .all(comanda.id);
+
+  await imprimirConta(comanda, itens, { subtotal, total, desconto, descontoTipo: comanda.desconto_tipo, descontoValor: comanda.desconto_valor, pagamentos }).catch((erro) => {
     console.warn('Falha ao imprimir conta:', erro.message);
     const mesa = db.prepare('SELECT numero FROM mesas WHERE id = ?').get(id);
     eventos.emitir('impressao_falhou', { setor: 'bar', mesa_numero: mesa?.numero ?? id, contexto: 'conta' });

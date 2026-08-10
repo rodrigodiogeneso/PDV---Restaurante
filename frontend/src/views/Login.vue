@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
     <form class="login-card" @submit.prevent="entrar">
-      <h1>PDV Restaurante</h1>
+      <h1>Rancho Alegre</h1>
       <p class="subtitulo">Entre com seu usuário para continuar</p>
 
       <label>E-mail</label>
