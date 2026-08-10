@@ -1,0 +1,7 @@
+node_modules/
+backend/db/*.db
+backend/db/*.db-*
+.env
+dist/
+.DS_Store
+.claude/
