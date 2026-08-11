@@ -73,6 +73,15 @@ router.post('/fechar', exigirPapel('admin', 'caixa'), (req, res) => {
   const sessao = buscarSessaoAberta(req.usuario.restaurante_id);
   if (!sessao) return res.status(400).json({ erro: 'Não há caixa aberto' });
 
+  const mesasAbertas = db
+    .prepare(`SELECT COUNT(*) AS total FROM mesas WHERE restaurante_id = ? AND status = 'ocupada'`)
+    .get(req.usuario.restaurante_id).total;
+  if (mesasAbertas > 0) {
+    return res.status(400).json({
+      erro: `Ainda há ${mesasAbertas} mesa${mesasAbertas > 1 ? 's' : ''} aberta${mesasAbertas > 1 ? 's' : ''}. Feche todas as mesas antes de fechar o caixa.`,
+    });
+  }
+
   db.prepare(`UPDATE caixa_sessoes SET status = 'fechado', fechado_em = CURRENT_TIMESTAMP WHERE id = ?`).run(sessao.id);
   const sessaoFechada = db.prepare('SELECT * FROM caixa_sessoes WHERE id = ?').get(sessao.id);
   const resumo = calcularResumo(sessaoFechada, sessaoFechada.fechado_em);

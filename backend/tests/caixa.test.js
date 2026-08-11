@@ -53,6 +53,12 @@ test('fluxo de caixa: abrir, registrar venda, ver resumo e fechar', async () => 
   assert.equal(resumo.body.resumo.totalGeral, 30);
   assert.equal(resumo.body.resumo.porFormaPagamento[0].forma_pagamento, 'pix');
 
+  // Não deixa fechar o caixa com a mesa ainda aberta
+  const fecharComMesaAberta = await request(app).post('/api/caixa/fechar').set('Authorization', `Bearer ${tokenCaixa}`);
+  assert.equal(fecharComMesaAberta.status, 400);
+
+  await request(app).post(`/api/mesas/${mesaId}/fechar`).set('Authorization', `Bearer ${tokenCaixa}`);
+
   const fechar = await request(app).post('/api/caixa/fechar').set('Authorization', `Bearer ${tokenCaixa}`);
   assert.equal(fechar.status, 200);
   assert.equal(fechar.body.sessao.status, 'fechado');
