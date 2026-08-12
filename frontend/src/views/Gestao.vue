@@ -209,6 +209,7 @@
               <td><span class="papel-badge" :class="u.papel">{{ papelLabel(u.papel) }}</span></td>
               <td class="acoes">
                 <button @click="iniciarEdicaoUsuario(u)">Editar</button>
+                <button @click="abrirResetSenha(u)">Resetar senha</button>
                 <button @click="removerUsuario(u)">Remover</button>
               </td>
             </template>
@@ -217,6 +218,25 @@
       </table>
         </div>
     </section>
+
+    <!-- Modal de reset de senha -->
+    <div v-if="resetSenhaUsuario" class="modal-backdrop" @click.self="fecharResetSenha">
+      <div class="modal">
+        <h3>Resetar senha — {{ resetSenhaUsuario.nome }}</h3>
+        <p class="modal-aviso">A pessoa vai precisar trocar essa senha no próximo login.</p>
+        <label>Nova senha</label>
+        <input v-model="novaSenhaReset" type="password" minlength="6" autofocus />
+        <label>Confirmar nova senha</label>
+        <input v-model="confirmarSenhaReset" type="password" minlength="6" />
+        <p v-if="erroReset" class="erro-reset">{{ erroReset }}</p>
+        <div class="modal-actions">
+          <button @click="fecharResetSenha">Cancelar</button>
+          <button class="btn-salvar" :disabled="resetando" @click="confirmarResetSenha">
+            {{ resetando ? 'Salvando...' : 'Resetar senha' }}
+          </button>
+        </div>
+      </div>
+    </div>
     </template>
   </div>
 </template>
@@ -259,6 +279,12 @@ const edicaoProduto = reactive({ nome: '', preco: null, categoria_id: null, seto
 const novoUsuario = reactive({ nome: '', email: '', senha: '', papel: 'garcom' });
 const edicaoUsuarioId = ref(null);
 const edicaoUsuario = reactive({ nome: '', papel: 'garcom' });
+
+const resetSenhaUsuario = ref(null);
+const novaSenhaReset = ref('');
+const confirmarSenhaReset = ref('');
+const erroReset = ref('');
+const resetando = ref(false);
 
 const novaImpressora = reactive({ nome: '', setor: 'cozinha', ip: '', porta: 9100 });
 const edicaoImpressoraId = ref(null);
@@ -343,6 +369,36 @@ async function removerUsuario(u) {
   if (!window.confirm(`Remover o usuário ${u.nome}?`)) return;
   await api.delete(`/usuarios/${u.id}`);
   await carregarUsuarios();
+}
+
+function abrirResetSenha(u) {
+  resetSenhaUsuario.value = u;
+  novaSenhaReset.value = '';
+  confirmarSenhaReset.value = '';
+  erroReset.value = '';
+}
+function fecharResetSenha() {
+  resetSenhaUsuario.value = null;
+}
+async function confirmarResetSenha() {
+  erroReset.value = '';
+  if (novaSenhaReset.value.length < 6) {
+    erroReset.value = 'A senha deve ter pelo menos 6 caracteres.';
+    return;
+  }
+  if (novaSenhaReset.value !== confirmarSenhaReset.value) {
+    erroReset.value = 'As senhas não coincidem.';
+    return;
+  }
+  resetando.value = true;
+  try {
+    await api.put(`/usuarios/${resetSenhaUsuario.value.id}`, { senha: novaSenhaReset.value });
+    fecharResetSenha();
+  } catch (e) {
+    erroReset.value = e.response?.data?.erro || 'Não foi possível resetar a senha.';
+  } finally {
+    resetando.value = false;
+  }
 }
 
 async function criarImpressora() {
@@ -430,6 +486,22 @@ tr.inativo { opacity: 0.5; }
 .papel-badge.caixa { background: #eaf3de; color: #4c7a1f; }
 .papel-badge.cozinha { background: #faeeda; color: #854f0b; }
 .papel-badge.bar { background: #f1e6fb; color: #6a3fa0; }
+
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1001;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.modal {
+  background: white; border-radius: 12px; padding: 20px; width: 320px; max-width: 100%;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.modal h3 { margin: 0 0 4px; font-size: 16px; }
+.modal-aviso { font-size: 13px; color: #666; margin: 0 0 8px; }
+.modal label { font-size: 13px; color: #444; margin-top: 4px; }
+.modal input { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+.erro-reset { color: #a03a3a; font-size: 13px; margin: 4px 0 0; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.btn-salvar { background: #0f6e56; color: white; border: none; }
 
 @media (max-width: 700px) {
   .form-linha { flex-direction: column; align-items: stretch; }
