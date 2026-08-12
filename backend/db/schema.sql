@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   email TEXT UNIQUE NOT NULL,
   senha_hash TEXT NOT NULL,
   papel TEXT NOT NULL CHECK (papel IN ('admin','garcom','cozinha','bar','caixa')),
+  deve_trocar_senha INTEGER NOT NULL DEFAULT 0,
   criado_em TEXT DEFAULT CURRENT_TIMESTAMP
 );
 

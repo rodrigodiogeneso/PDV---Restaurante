@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
-const { SECRET } = require('../middleware/auth');
+const { SECRET, autenticar } = require('../middleware/auth');
 const { registrar } = require('../services/auditoria');
 
 // Rate limiting simples em memória — bloqueia após 10 tentativas falhas
@@ -56,7 +56,35 @@ router.post('/login', (req, res) => {
 
   registrar({ usuario, acao: 'login', entidade: 'usuario', entidadeId: usuario.id });
 
-  res.json({ token, usuario: { id: usuario.id, nome: usuario.nome, papel: usuario.papel } });
+  res.json({
+    token,
+    usuario: { id: usuario.id, nome: usuario.nome, papel: usuario.papel },
+    deve_trocar_senha: Boolean(usuario.deve_trocar_senha),
+  });
+});
+
+// POST /api/auth/trocar-senha - o próprio usuário logado troca a senha
+// (obrigatório no primeiro login ou depois que o admin redefine a senha)
+router.post('/trocar-senha', autenticar, (req, res) => {
+  const { senha_atual, senha_nova } = req.body;
+  if (!senha_atual || !senha_nova) {
+    return res.status(400).json({ erro: 'senha_atual e senha_nova são obrigatórios' });
+  }
+  if (senha_nova.length < 6) {
+    return res.status(400).json({ erro: 'A nova senha deve ter pelo menos 6 caracteres' });
+  }
+
+  const usuario = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(req.usuario.id);
+  if (!usuario || !bcrypt.compareSync(senha_atual, usuario.senha_hash)) {
+    return res.status(401).json({ erro: 'Senha atual incorreta' });
+  }
+
+  db.prepare('UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = 0 WHERE id = ?')
+    .run(bcrypt.hashSync(senha_nova, 10), usuario.id);
+
+  registrar({ usuario: req.usuario, acao: 'senha_alterada', entidade: 'usuario', entidadeId: usuario.id });
+
+  res.json({ ok: true });
 });
 
 module.exports = router;

@@ -47,7 +47,7 @@ const FORMA_PAGAMENTO_LABELS = {
   pix: 'PIX',
 };
 
-async function imprimirItens(setor, comanda, itens) {
+async function imprimirItens(setor, comanda, itens, nomeGarcom) {
   const printer = await conectarImpressora(setor);
   if (!printer) return;
 
@@ -57,6 +57,7 @@ async function imprimirItens(setor, comanda, itens) {
   printer.println(setor === 'cozinha' ? 'COZINHA' : 'BAR');
   printer.bold(false);
   printer.println(`Mesa ${buscarNumeroMesa(comanda.mesa_id)}${comanda.nome_cliente ? ' - ' + comanda.nome_cliente : ''}`);
+  if (nomeGarcom) printer.println(`Garçom: ${nomeGarcom}`);
   printer.drawLine();
   printer.alignLeft();
 

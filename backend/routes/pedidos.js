@@ -88,7 +88,7 @@ router.post('/', exigirPapel('admin', 'garcom', 'caixa'), (req, res) => {
   const mesa = db.prepare('SELECT numero FROM mesas WHERE id = ?').get(comanda.mesa_id);
 
   Object.entries(porSetor).forEach(([setor, itensDoSetor]) => {
-    imprimirItens(setor, comanda, itensDoSetor).catch((err) => {
+    imprimirItens(setor, comanda, itensDoSetor, req.usuario.nome).catch((err) => {
       console.error(`Falha ao imprimir no setor ${setor}:`, err.message);
       eventos.emitir('impressao_falhou', { setor, mesa_numero: mesa?.numero ?? comanda.mesa_id });
     });

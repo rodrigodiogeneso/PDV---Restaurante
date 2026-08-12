@@ -6,7 +6,7 @@
     <button @click="ui.limparErro">✕</button>
   </div>
 
-  <nav v-if="auth.usuario" class="topnav">
+  <nav v-if="auth.usuario && !auth.deveTrocarSenha" class="topnav">
     <router-link to="/">Mesas</router-link>
     <template v-if="auth.usuario.papel === 'admin'">
       <span class="divisor"></span>

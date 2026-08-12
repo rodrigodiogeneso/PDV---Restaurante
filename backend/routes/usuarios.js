@@ -30,7 +30,7 @@ router.post('/', (req, res) => {
   try {
     const info = db
       .prepare(
-        'INSERT INTO usuarios (restaurante_id, nome, email, senha_hash, papel) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO usuarios (restaurante_id, nome, email, senha_hash, papel, deve_trocar_senha) VALUES (?, ?, ?, ?, ?, 1)'
       )
       .run(req.usuario.restaurante_id || restaurante_id || 1, nome, email, bcrypt.hashSync(senha, 10), papel);
 
@@ -56,10 +56,11 @@ router.put('/:id', (req, res) => {
     return res.status(400).json({ erro: 'papel inválido' });
   }
 
-  db.prepare('UPDATE usuarios SET nome = ?, papel = ?, senha_hash = ? WHERE id = ?').run(
+  db.prepare('UPDATE usuarios SET nome = ?, papel = ?, senha_hash = ?, deve_trocar_senha = ? WHERE id = ?').run(
     nome ?? usuario.nome,
     papel ?? usuario.papel,
     senha ? bcrypt.hashSync(senha, 10) : usuario.senha_hash,
+    senha ? 1 : usuario.deve_trocar_senha,
     id
   );
 
