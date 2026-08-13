@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db/database');
 const { exigirPapel } = require('../middleware/auth');
 
-router.use(exigirPapel('admin'));
+router.use(exigirPapel('admin', 'caixa'));
 
 // GET /api/relatorios/vendas?inicio=YYYY-MM-DD&fim=YYYY-MM-DD
 // Baseado em comandas fechadas no período (venda "de verdade", concluída).

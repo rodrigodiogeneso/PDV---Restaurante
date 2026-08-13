@@ -14,6 +14,10 @@
       <router-link to="/relatorios">Relatórios</router-link>
       <router-link to="/auditoria">Auditoria</router-link>
     </template>
+    <template v-else-if="auth.usuario.papel === 'caixa'">
+      <span class="divisor"></span>
+      <router-link to="/relatorios">Relatórios</router-link>
+    </template>
     <span class="spacer"></span>
     <span class="usuario">{{ auth.usuario.nome }}</span>
     <button class="sair" @click="sair">Sair</button>

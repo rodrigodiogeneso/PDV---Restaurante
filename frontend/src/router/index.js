@@ -16,7 +16,7 @@ const routes = [
   { path: '/mesa/:mesaId/comanda/:comandaId', component: Comanda, props: true },
   { path: '/kds/:setor', component: Kds, props: true },
   { path: '/gestao', component: Gestao, meta: { papeis: ['admin'] } },
-  { path: '/relatorios', component: Relatorios, meta: { papeis: ['admin'] } },
+  { path: '/relatorios', component: Relatorios, meta: { papeis: ['admin', 'caixa'] } },
   { path: '/auditoria', component: Auditoria, meta: { papeis: ['admin'] } },
 ];
 
