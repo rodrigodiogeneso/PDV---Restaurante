@@ -42,7 +42,7 @@ router.post('/login', (req, res) => {
     return res.status(400).json({ erro: 'email e senha são obrigatórios' });
   }
 
-  const usuario = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(email);
+  const usuario = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(email.trim().toLowerCase());
   if (!usuario || !bcrypt.compareSync(senha, usuario.senha_hash)) {
     registrar({ usuario: null, acao: 'login_falhou', entidade: 'usuario', detalhes: { email } });
     return res.status(401).json({ erro: 'Credenciais inválidas' });

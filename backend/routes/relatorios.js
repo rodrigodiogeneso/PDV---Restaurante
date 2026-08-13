@@ -44,17 +44,22 @@ router.get('/vendas', (req, res) => {
     )
     .all(inicio, fim);
 
-  // Quebra por forma de pagamento — vem da tabela pagamentos (suporta contas divididas)
-  const porFormaPagamento = db
+  // Quebra por forma de pagamento — vem da tabela pagamentos (suporta contas divididas).
+  // Sempre lista todas as formas conhecidas (mesmo com R$ 0,00) pra facilitar conferência no balancete.
+  const FORMAS_PAGAMENTO = ['dinheiro', 'cartao_credito', 'cartao_debito', 'pix'];
+  const porFormaPagamentoBruto = db
     .prepare(
       `SELECT pg.forma_pagamento, COUNT(*) AS quantidade_pagamentos, SUM(pg.valor) AS total
        FROM pagamentos pg
        JOIN comandas c ON c.id = pg.comanda_id
        WHERE c.status = 'fechada' AND date(datetime(c.fechada_em, '-3 hours')) BETWEEN ? AND ?
-       GROUP BY pg.forma_pagamento
-       ORDER BY total DESC`
+       GROUP BY pg.forma_pagamento`
     )
     .all(inicio, fim);
+  const porFormaPagamento = FORMAS_PAGAMENTO.map((forma) => {
+    const encontrada = porFormaPagamentoBruto.find((f) => f.forma_pagamento === forma);
+    return encontrada || { forma_pagamento: forma, quantidade_pagamentos: 0, total: 0 };
+  }).sort((a, b) => b.total - a.total);
 
   // Total de descontos concedidos no período
   const descontoInfo = db

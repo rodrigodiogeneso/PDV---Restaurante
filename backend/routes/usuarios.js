@@ -32,7 +32,7 @@ router.post('/', (req, res) => {
       .prepare(
         'INSERT INTO usuarios (restaurante_id, nome, email, senha_hash, papel, deve_trocar_senha) VALUES (?, ?, ?, ?, ?, 1)'
       )
-      .run(req.usuario.restaurante_id || restaurante_id || 1, nome, email, bcrypt.hashSync(senha, 10), papel);
+      .run(req.usuario.restaurante_id || restaurante_id || 1, nome, email.trim().toLowerCase(), bcrypt.hashSync(senha, 10), papel);
 
     registrar({ usuario: req.usuario, acao: 'usuario_criado', entidade: 'usuario', entidadeId: info.lastInsertRowid, detalhes: { nome, email, papel } });
 

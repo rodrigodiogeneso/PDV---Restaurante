@@ -22,6 +22,8 @@ function migrar() {
   if (!colunasUsuarios.includes('ativo')) {
     db.exec('ALTER TABLE usuarios ADD COLUMN ativo INTEGER NOT NULL DEFAULT 1');
   }
+  // Login passou a comparar e-mail em minúsculas; normaliza o que já estava salvo.
+  db.exec("UPDATE usuarios SET email = LOWER(TRIM(email)) WHERE email != LOWER(TRIM(email))");
 }
 
 function seedIfEmpty() {
