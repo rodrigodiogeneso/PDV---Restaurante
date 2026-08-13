@@ -83,52 +83,10 @@
 
       <button class="imprimir" :disabled="processando || !itensExistentes.length" @click="mostrarPreviaConta = true">Imprimir conta</button>
 
-      <!-- Pagamentos (pode dividir a conta em várias partes/formas) -->
-      <div v-if="podeCancelar && itensExistentes.length" class="secao-pagamentos">
-        <p class="subtitulo">Pagamentos</p>
-
-        <div v-if="pagamentos.length" class="lista-pagamentos">
-          <div v-for="p in pagamentos" :key="p.id" class="pagamento-linha">
-            <span>{{ formaIcone(p.forma_pagamento) }} {{ formaLabel(p.forma_pagamento) }}</span>
-            <span>R$ {{ p.valor.toFixed(2) }}</span>
-            <button class="cancelar" :disabled="processando" @click="removerPagamento(p)">✕</button>
-          </div>
-        </div>
-
-        <div class="resumo-pagamento">
-          <span>Pago: R$ {{ totalPago.toFixed(2) }}</span>
-          <span :class="{ 'restante-zerado': restante <= 0.01 }">Restante: R$ {{ restante.toFixed(2) }}</span>
-        </div>
-
-        <div v-if="restante > 0.01" class="form-inline dividir-pessoas">
-          <input v-model.number="numeroPessoasDivisao" type="number" min="1" placeholder="Dividir em quantas pessoas?" />
-          <span v-if="valorPorPessoa > 0" class="valor-por-pessoa">R$ {{ valorPorPessoa.toFixed(2) }} cada</span>
-          <button v-if="valorPorPessoa > 0" @click="preencherValorDividido">Usar valor</button>
-        </div>
-
-        <div v-if="restante > 0.01" class="form-inline form-pagamento">
-          <input v-model.number="novoPagamento.valor" type="number" min="0" step="0.01" :placeholder="restante.toFixed(2)" />
-          <select v-model="novoPagamento.forma">
-            <option :value="null" disabled>Forma</option>
-            <option v-for="f in formasPagamento" :key="f.valor" :value="f.valor">{{ f.icone }} {{ f.label }}</option>
-          </select>
-          <button :disabled="processando || !novoPagamento.forma" @click="registrarPagamento">Registrar</button>
-        </div>
-      </div>
-
-      <!-- Fechamento -->
-      <div v-if="podeCancelar" class="secao-fechar">
-        <button
-          v-if="!pagamentos.length"
-          class="fechar-rapido"
-          :disabled="processando || !itensExistentes.length"
-          @click="fecharRapido"
-        >
-          Fechar mesa
-        </button>
-        <button v-else class="fechar" :disabled="processando || restante > 0.01" @click="fecharMesa">
-          {{ restante > 0.01 ? `Falta R$ ${restante.toFixed(2)} para fechar` : 'Fechar mesa' }}
-        </button>
+      <!-- Fechamento: um único fluxo, dentro de um modal, cobre tanto o pagamento
+           simples (uma forma, valor cheio) quanto a conta dividida em várias partes. -->
+      <div v-if="podeCancelar && itensExistentes.length" class="secao-fechar">
+        <button class="fechar" :disabled="processando" @click="abrirFechamento">Fechar mesa</button>
       </div>
 
       <!-- Modal de pré-visualização da pré-conta antes de mandar pra impressora -->
@@ -161,31 +119,90 @@
         </div>
       </div>
 
-      <!-- Modal do atalho de fechamento rápido (pagamento único, sem dividir) -->
-      <div v-if="mostrarFechamentoRapido" class="modal-backdrop" @click.self="mostrarFechamentoRapido = false">
-        <div class="modal">
-          <template v-if="etapaFechamento === 'forma'">
-            <h3>Fechar mesa</h3>
-            <p class="modal-total">Total: R$ {{ totalComDesconto.toFixed(2) }}</p>
-            <p class="modal-instrucao">Qual foi a forma de pagamento?</p>
-            <div class="formas-pagamento">
-              <button v-for="f in formasPagamento" :key="f.valor" class="forma-btn" @click="selecionarFormaRapida(f.valor)">
-                {{ f.icone }} {{ f.label }}
-              </button>
+      <!-- Modal de fechamento: registra pagamento(s) e confirma o fechamento da mesa -->
+      <div v-if="mostrarFechamento" class="modal-backdrop" @click.self="mostrarFechamento = false">
+        <div class="modal modal-fechamento">
+          <template v-if="etapaFechamento === 'pagamento'">
+            <h3>Fechar mesa {{ mesaNumero ?? mesaId }}</h3>
+
+            <div class="fechamento-status">
+              <div class="fechamento-status-linha">
+                <span>Total da conta</span>
+                <span>R$ {{ totalComDesconto.toFixed(2) }}</span>
+              </div>
+              <div v-if="totalPago > 0" class="fechamento-status-linha">
+                <span>Já pago</span>
+                <span>R$ {{ totalPago.toFixed(2) }}</span>
+              </div>
+              <div class="fechamento-status-linha restante" :class="{ zerado: restante <= 0.01 }">
+                <span>Falta pagar</span>
+                <span>R$ {{ restante.toFixed(2) }}</span>
+              </div>
             </div>
+
+            <div v-if="pagamentos.length" class="lista-pagamentos">
+              <div v-for="p in pagamentos" :key="p.id" class="pagamento-linha">
+                <span>{{ formaIcone(p.forma_pagamento) }} {{ formaLabel(p.forma_pagamento) }}</span>
+                <span>R$ {{ p.valor.toFixed(2) }}</span>
+                <button class="cancelar" :disabled="processando" @click="removerPagamento(p)">✕</button>
+              </div>
+            </div>
+
+            <template v-if="restante > 0.01">
+              <button v-if="!mostrarDivisao" class="link-dividir" type="button" @click="mostrarDivisao = true">
+                Dividir essa conta entre várias pessoas?
+              </button>
+              <div v-else class="form-inline dividir-pessoas">
+                <input v-model.number="numeroPessoasDivisao" type="number" min="1" placeholder="Nº de pessoas" />
+                <span v-if="valorPorPessoa > 0" class="valor-por-pessoa">R$ {{ valorPorPessoa.toFixed(2) }} cada</span>
+                <button v-if="valorPorPessoa > 0" type="button" @click="preencherValorDividido">Usar valor</button>
+              </div>
+
+              <label class="label-valor" for="valor-pagamento">Valor deste pagamento</label>
+              <div class="form-inline">
+                <span class="prefixo-moeda">R$</span>
+                <input
+                  id="valor-pagamento"
+                  v-model.number="novoPagamento.valor"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  :placeholder="restante.toFixed(2)"
+                />
+              </div>
+
+              <p class="modal-instrucao">Forma de pagamento:</p>
+              <div class="formas-pagamento">
+                <button
+                  v-for="f in formasPagamento"
+                  :key="f.valor"
+                  class="forma-btn"
+                  :disabled="processando"
+                  @click="registrarPagamentoModal(f.valor)"
+                >
+                  {{ f.icone }} {{ f.label }}
+                </button>
+              </div>
+            </template>
+
             <div class="modal-actions">
-              <button @click="mostrarFechamentoRapido = false">Cancelar</button>
+              <button @click="mostrarFechamento = false">Cancelar</button>
             </div>
           </template>
 
           <template v-else>
             <h3>Confirmar fechamento</h3>
-            <p class="modal-forma-confirmada">{{ formaIcone(formaSelecionada) }} {{ formaLabel(formaSelecionada) }}</p>
+            <div class="lista-pagamentos">
+              <div v-for="p in pagamentos" :key="p.id" class="pagamento-linha">
+                <span>{{ formaIcone(p.forma_pagamento) }} {{ formaLabel(p.forma_pagamento) }}</span>
+                <span>R$ {{ p.valor.toFixed(2) }}</span>
+              </div>
+            </div>
             <p class="modal-total">Total: R$ {{ totalComDesconto.toFixed(2) }}</p>
-            <p class="modal-aviso">Confirma que o pagamento já foi feito e a mesa pode ser liberada?</p>
+            <p class="modal-aviso">Confirma que o pagamento foi recebido e a mesa pode ser liberada?</p>
             <div class="modal-actions">
-              <button @click="etapaFechamento = 'forma'">Voltar</button>
-              <button class="btn-salvar" :disabled="processando" @click="confirmarFechamentoRapido">Confirmar e fechar</button>
+              <button @click="etapaFechamento = 'pagamento'">Voltar</button>
+              <button class="btn-salvar" :disabled="processando" @click="fecharMesaFinal">Confirmar e fechar</button>
             </div>
           </template>
         </div>
@@ -216,12 +233,12 @@ const podeAdicionarItens = computed(() => ['admin', 'garcom', 'caixa'].includes(
 const desconto = reactive({ tipo: 'valor', valor: 0 });
 
 const pagamentos = ref([]);
-const novoPagamento = reactive({ forma: null, valor: null });
+const novoPagamento = reactive({ valor: null });
 const numeroPessoasDivisao = ref(null);
 const mostrarPreviaConta = ref(false);
-const mostrarFechamentoRapido = ref(false);
-const etapaFechamento = ref('forma');
-const formaSelecionada = ref(null);
+const mostrarFechamento = ref(false);
+const mostrarDivisao = ref(false);
+const etapaFechamento = ref('pagamento');
 
 const formasPagamento = [
   { valor: 'dinheiro', label: 'Dinheiro', icone: '💵' },
@@ -388,15 +405,14 @@ async function removerDesconto() {
   }
 }
 
-async function registrarPagamento() {
-  if (!novoPagamento.forma) return;
+async function registrarPagamentoModal(forma) {
   const valor = novoPagamento.valor > 0 ? novoPagamento.valor : restante.value;
   processando.value = true;
   try {
-    await api.post(`/mesas/${props.mesaId}/pagamento`, { forma_pagamento: novoPagamento.forma, valor });
-    novoPagamento.forma = null;
+    await api.post(`/mesas/${props.mesaId}/pagamento`, { forma_pagamento: forma, valor });
     novoPagamento.valor = null;
     await carregarPagamentos();
+    if (restante.value <= 0.01) etapaFechamento.value = 'confirmar';
   } catch (e) {
     alert(e.response?.data?.erro || 'Erro ao registrar pagamento');
   } finally {
@@ -410,44 +426,29 @@ async function removerPagamento(pagamento) {
   try {
     await api.delete(`/mesas/${props.mesaId}/pagamento/${pagamento.id}`);
     await carregarPagamentos();
+    if (restante.value > 0.01) etapaFechamento.value = 'pagamento';
   } finally {
     processando.value = false;
   }
 }
 
-async function fecharMesa() {
-  if (restante.value > 0.01) return;
+function abrirFechamento() {
+  mostrarDivisao.value = false;
+  numeroPessoasDivisao.value = null;
+  novoPagamento.valor = null;
+  etapaFechamento.value = restante.value <= 0.01 ? 'confirmar' : 'pagamento';
+  mostrarFechamento.value = true;
+}
+
+async function fecharMesaFinal() {
   processando.value = true;
   try {
     await api.post(`/mesas/${props.mesaId}/fechar`);
-    router.push('/');
-  } finally {
-    processando.value = false;
-  }
-}
-
-function fecharRapido() {
-  formaSelecionada.value = null;
-  etapaFechamento.value = 'forma';
-  mostrarFechamentoRapido.value = true;
-}
-
-function selecionarFormaRapida(forma) {
-  formaSelecionada.value = forma;
-  etapaFechamento.value = 'confirmar';
-}
-
-async function confirmarFechamentoRapido() {
-  if (!formaSelecionada.value) return;
-  processando.value = true;
-  try {
-    await api.post(`/mesas/${props.mesaId}/fechar`, { forma_pagamento: formaSelecionada.value });
     router.push('/');
   } catch (e) {
     alert(e.response?.data?.erro || 'Erro ao fechar mesa');
   } finally {
     processando.value = false;
-    mostrarFechamentoRapido.value = false;
   }
 }
 
@@ -597,43 +598,46 @@ onUnmounted(() => {
 .secao-desconto { margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd; }
 .form-inline { display: flex; gap: 6px; align-items: center; }
 .prefixo-moeda { font-size: 13px; color: #666; }
-.form-inline select { padding: 6px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; width: 50px; }
 .form-inline input { padding: 6px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; width: 70px; }
 .form-inline button { font-size: 12px; padding: 6px 10px; }
 .btn-limpar { color: #a03a3a; border-color: #e0b4b4; }
 
 .secao-fechar { margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd; }
-.formas-pagamento { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 10px; }
+.formas-pagamento { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin: 6px 0 4px; }
 .forma-btn {
-  padding: 8px; font-size: 12px; text-align: center; border-radius: 8px;
+  padding: 10px; font-size: 13px; text-align: center; border-radius: 8px;
   border: 1px solid #ccc; background: white; cursor: pointer; transition: all 0.15s;
 }
-.forma-btn.selecionada {
-  border-color: #0f6e56; background: #eaf3de; color: #0f6e56; font-weight: 500;
-}
-.fechar, .fechar-rapido {
+.forma-btn:hover:not(:disabled) { border-color: #0f6e56; }
+.forma-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.fechar {
   width: 100%; margin-top: 4px; background: #0f6e56; color: white; border: none; padding: 10px; font-size: 13px;
 }
-.fechar:disabled, .fechar-rapido:disabled { opacity: 0.4; cursor: not-allowed; }
+.fechar:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.secao-pagamentos { margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd; }
-.lista-pagamentos { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.modal-fechamento { width: 320px; }
+.fechamento-status {
+  background: #f7f6f2; border-radius: 10px; padding: 10px 12px; display: flex;
+  flex-direction: column; gap: 4px; margin-bottom: 4px;
+}
+.fechamento-status-linha { display: flex; justify-content: space-between; font-size: 13px; }
+.fechamento-status-linha.restante { font-weight: 600; }
+.fechamento-status-linha.restante.zerado { color: #0f6e56; }
+.lista-pagamentos { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
 .pagamento-linha {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
-  font-size: 13px; background: white; border-radius: 8px; padding: 6px 10px;
+  font-size: 13px; background: #f7f6f2; border-radius: 8px; padding: 6px 10px;
 }
 .pagamento-linha .cancelar {
   background: none; border: none; color: #a03a3a; cursor: pointer; padding: 0 2px; font-size: 13px;
 }
-.resumo-pagamento {
-  display: flex; justify-content: space-between; font-size: 13px; font-weight: 500;
-  padding: 6px 2px; margin-bottom: 8px;
+.link-dividir {
+  align-self: flex-start; background: none; border: none; color: #0f6e56; font-size: 13px;
+  cursor: pointer; padding: 4px 0; text-decoration: underline;
 }
-.resumo-pagamento .restante-zerado { color: #0f6e56; }
-.form-pagamento input { width: 80px; }
-.form-pagamento select { flex: 1; }
 .dividir-pessoas input { flex: 1; min-width: 0; }
 .valor-por-pessoa { font-size: 13px; font-weight: 500; color: #0f6e56; white-space: nowrap; }
+.label-valor { font-size: 12px; color: #666; margin: 4px 0 -2px; }
 
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1001;
@@ -649,7 +653,6 @@ onUnmounted(() => {
 .previa-linha { display: flex; justify-content: space-between; font-size: 13px; color: #444; }
 .modal-total { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
 .modal-instrucao { font-size: 13px; color: #666; margin: 0 0 8px; }
-.modal-forma-confirmada { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
 .modal-aviso { font-size: 13px; color: #666; margin: 0 0 8px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .btn-salvar { background: #0f6e56; color: white; border: none; }
@@ -665,11 +668,11 @@ onUnmounted(() => {
   .produto-card { padding: 14px 12px; }
   .busca-produto { font-size: 16px; }
   .item-linha, .pagamento-linha { font-size: 14px; }
-  .enviar, .imprimir, .fechar, .fechar-rapido {
+  .enviar, .imprimir, .fechar {
     padding: 14px;
     font-size: 15px;
   }
   .forma-btn { padding: 12px; font-size: 13px; }
-  .form-inline input, .form-inline select { font-size: 16px; padding: 10px; }
+  .form-inline input { font-size: 16px; padding: 10px; }
 }
 </style>
