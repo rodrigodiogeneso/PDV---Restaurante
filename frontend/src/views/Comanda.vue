@@ -441,6 +441,7 @@ function abrirFechamento() {
 }
 
 async function fecharMesaFinal() {
+  if (!window.confirm(`Confirma o fechamento da mesa ${mesaNumero.value ?? mesaId}? Essa ação não pode ser desfeita.`)) return;
   processando.value = true;
   try {
     await api.post(`/mesas/${props.mesaId}/fechar`);
