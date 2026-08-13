@@ -47,6 +47,10 @@ router.post('/login', (req, res) => {
     registrar({ usuario: null, acao: 'login_falhou', entidade: 'usuario', detalhes: { email } });
     return res.status(401).json({ erro: 'Credenciais inválidas' });
   }
+  if (!usuario.ativo) {
+    registrar({ usuario: null, acao: 'login_bloqueado_inativo', entidade: 'usuario', entidadeId: usuario.id, detalhes: { email } });
+    return res.status(403).json({ erro: 'Usuário inativo. Fale com o administrador.' });
+  }
 
   const token = jwt.sign(
     { id: usuario.id, nome: usuario.nome, papel: usuario.papel, restaurante_id: usuario.restaurante_id },

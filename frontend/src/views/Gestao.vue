@@ -183,9 +183,9 @@
 
       <div class="tabela-wrap">
         <table>
-        <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th><th></th></tr></thead>
         <tbody>
-          <tr v-for="u in usuarios" :key="u.id">
+          <tr v-for="u in usuarios" :key="u.id" :class="{ inativo: !u.ativo }">
             <template v-if="edicaoUsuarioId === u.id">
               <td><input v-model="edicaoUsuario.nome" /></td>
               <td>{{ u.email }}</td>
@@ -198,6 +198,7 @@
                   <option value="admin">Admin</option>
                 </select>
               </td>
+              <td>{{ u.ativo ? 'Ativo' : 'Inativo' }}</td>
               <td class="acoes">
                 <button @click="salvarUsuario(u.id)">Salvar</button>
                 <button @click="edicaoUsuarioId = null">Cancelar</button>
@@ -207,9 +208,11 @@
               <td>{{ u.nome }}</td>
               <td>{{ u.email }}</td>
               <td><span class="papel-badge" :class="u.papel">{{ papelLabel(u.papel) }}</span></td>
+              <td>{{ u.ativo ? 'Ativo' : 'Inativo' }}</td>
               <td class="acoes">
                 <button @click="iniciarEdicaoUsuario(u)">Editar</button>
                 <button @click="abrirResetSenha(u)">Resetar senha</button>
+                <button @click="alternarAtivoUsuario(u)">{{ u.ativo ? 'Inativar' : 'Reativar' }}</button>
                 <button @click="removerUsuario(u)">Remover</button>
               </td>
             </template>
@@ -367,7 +370,15 @@ async function salvarUsuario(id) {
 }
 async function removerUsuario(u) {
   if (!window.confirm(`Remover o usuário ${u.nome}?`)) return;
-  await api.delete(`/usuarios/${u.id}`);
+  try {
+    await api.delete(`/usuarios/${u.id}`);
+    await carregarUsuarios();
+  } catch (e) {
+    window.alert(e.response?.data?.erro || 'Não foi possível remover o usuário.');
+  }
+}
+async function alternarAtivoUsuario(u) {
+  await api.put(`/usuarios/${u.id}`, { ativo: u.ativo ? 0 : 1 });
   await carregarUsuarios();
 }
 

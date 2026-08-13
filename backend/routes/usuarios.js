@@ -12,7 +12,7 @@ router.use(exigirPapel('admin'));
 // GET /api/usuarios
 router.get('/', (req, res) => {
   const usuarios = db
-    .prepare('SELECT id, nome, email, papel, criado_em FROM usuarios ORDER BY nome')
+    .prepare('SELECT id, nome, email, papel, ativo, criado_em FROM usuarios ORDER BY ativo DESC, nome')
     .all();
   res.json(usuarios);
 });
@@ -48,7 +48,11 @@ router.post('/', (req, res) => {
 // PUT /api/usuarios/:id - edita nome/papel e, opcionalmente, a senha
 router.put('/:id', (req, res) => {
   const { id } = req.params;
-  const { nome, papel, senha } = req.body;
+  const { nome, papel, senha, ativo } = req.body;
+
+  if (ativo !== undefined && Number(id) === req.usuario.id && !ativo) {
+    return res.status(400).json({ erro: 'Você não pode inativar seu próprio usuário' });
+  }
 
   const usuario = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
   if (!usuario) return res.status(404).json({ erro: 'Usuário não encontrado' });
@@ -56,17 +60,20 @@ router.put('/:id', (req, res) => {
     return res.status(400).json({ erro: 'papel inválido' });
   }
 
-  db.prepare('UPDATE usuarios SET nome = ?, papel = ?, senha_hash = ?, deve_trocar_senha = ? WHERE id = ?').run(
+  db.prepare('UPDATE usuarios SET nome = ?, papel = ?, senha_hash = ?, deve_trocar_senha = ?, ativo = ? WHERE id = ?').run(
     nome ?? usuario.nome,
     papel ?? usuario.papel,
     senha ? bcrypt.hashSync(senha, 10) : usuario.senha_hash,
     senha ? 1 : usuario.deve_trocar_senha,
+    ativo !== undefined ? Number(Boolean(ativo)) : usuario.ativo,
     id
   );
 
   registrar({
     usuario: req.usuario,
-    acao: 'usuario_editado',
+    acao: ativo !== undefined && Number(ativo) !== usuario.ativo
+      ? (ativo ? 'usuario_ativado' : 'usuario_inativado')
+      : 'usuario_editado',
     entidade: 'usuario',
     entidadeId: Number(id),
     detalhes: { nome: nome ?? usuario.nome, papel: papel ?? usuario.papel, senhaAlterada: Boolean(senha) },

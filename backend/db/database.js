@@ -12,6 +12,16 @@ db.pragma('foreign_keys = ON');
 function initSchema() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
+  migrar();
+}
+
+// Aplica alterações de colunas em bancos já existentes (CREATE TABLE IF NOT EXISTS
+// não adiciona colunas novas em tabelas que já existiam antes da mudança no schema).
+function migrar() {
+  const colunasUsuarios = db.prepare("PRAGMA table_info(usuarios)").all().map((c) => c.name);
+  if (!colunasUsuarios.includes('ativo')) {
+    db.exec('ALTER TABLE usuarios ADD COLUMN ativo INTEGER NOT NULL DEFAULT 1');
+  }
 }
 
 function seedIfEmpty() {
