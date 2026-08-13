@@ -82,7 +82,18 @@ router.delete('/:id', (req, res) => {
     return res.status(400).json({ erro: 'Você não pode remover seu próprio usuário' });
   }
   const usuario = db.prepare('SELECT nome, email FROM usuarios WHERE id = ?').get(id);
-  db.prepare('DELETE FROM usuarios WHERE id = ?').run(id);
+  if (!usuario) return res.status(404).json({ erro: 'Usuário não encontrado' });
+
+  try {
+    db.prepare('DELETE FROM usuarios WHERE id = ?').run(id);
+  } catch (erro) {
+    if (erro.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+      return res.status(400).json({
+        erro: 'Não é possível remover este usuário: ele possui histórico vinculado (vendas, caixa ou auditoria). Você pode trocar a senha dele em vez de removê-lo.',
+      });
+    }
+    throw erro;
+  }
 
   registrar({ usuario: req.usuario, acao: 'usuario_removido', entidade: 'usuario', entidadeId: Number(id), detalhes: usuario });
 
