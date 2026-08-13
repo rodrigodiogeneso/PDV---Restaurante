@@ -13,8 +13,16 @@
       <p v-if="!produtosAgrupados.length" class="vazio">Nenhum item encontrado.</p>
 
       <div v-for="grupo in produtosAgrupados" :key="grupo.categoria" class="grupo-categoria">
-        <p class="categoria-titulo">{{ grupo.categoria }}</p>
-        <div class="produtos-grid">
+        <button type="button" class="categoria-titulo" @click="alternarCategoria(grupo.categoria)">
+          <span>{{ grupo.categoria }}</span>
+          <span class="categoria-meta">
+            <span class="categoria-contagem">{{ grupo.itens.length }}</span>
+            <svg class="categoria-seta" :class="{ aberta: categoriaAberta(grupo.categoria) }" viewBox="0 0 20 20" fill="none">
+              <path d="M6 8l4 4 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+        </button>
+        <div v-if="categoriaAberta(grupo.categoria)" class="produtos-grid">
           <div v-for="produto in grupo.itens" :key="produto.id" class="produto-card" @click="adicionarItem(produto)">
             <p class="nome">{{ produto.nome }}</p>
             <p class="preco">R$ {{ produto.preco.toFixed(2) }}</p>
@@ -316,6 +324,20 @@ const produtosAgrupados = computed(() => {
   return [...grupos.filter((g) => g.categoria !== 'SERVIÇOS'), ...grupos.filter((g) => g.categoria === 'SERVIÇOS')];
 });
 
+// Categorias começam fechadas; clicar no título abre/fecha. Buscando um item,
+// os grupos com resultado abrem sozinhos pra não esconder o que já foi filtrado.
+const categoriasAbertas = ref(new Set());
+function categoriaAberta(categoria) {
+  if (busca.value.trim()) return true;
+  return categoriasAbertas.value.has(categoria);
+}
+function alternarCategoria(categoria) {
+  const abertas = new Set(categoriasAbertas.value);
+  if (abertas.has(categoria)) abertas.delete(categoria);
+  else abertas.add(categoria);
+  categoriasAbertas.value = abertas;
+}
+
 async function carregarItensExistentes() {
   const { data } = await api.get(`/pedidos/comanda/${props.comandaId}`);
   itensExistentes.value = data;
@@ -530,12 +552,32 @@ onUnmounted(() => {
 }
 .busca-limpar:hover { color: #666; }
 .categoria-titulo {
-  font-size: 12px;
-  color: #888;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 4px 0;
   margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  cursor: pointer;
 }
+.categoria-titulo:hover { color: #1a1a1a; }
+.categoria-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.categoria-contagem {
+  font-size: 11px; font-weight: 500; color: #999; background: #eee;
+  border-radius: 999px; padding: 1px 7px; text-transform: none; letter-spacing: normal;
+}
+.categoria-seta {
+  width: 14px; height: 14px; color: #999; transition: transform 0.15s;
+}
+.categoria-seta.aberta { transform: rotate(180deg); }
 .produtos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
