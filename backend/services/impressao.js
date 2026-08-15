@@ -3,14 +3,16 @@
 // (padrão 9100 para a maioria das térmicas com interface Ethernet).
 const db = require('../db/database');
 
+// Lança erro (em vez de retornar null) quando não há impressora configurada ou ela
+// não responde, pra quem chama (imprimirItens/imprimirConta) conseguir tratar a
+// falha via .catch() — é esse catch que alimenta o aviso de "falha de impressão".
 async function conectarImpressora(setor) {
   const impressora = db
     .prepare(`SELECT * FROM impressoras WHERE setor = ? AND ativa = 1 LIMIT 1`)
     .get(setor);
 
   if (!impressora) {
-    console.warn(`Nenhuma impressora ativa cadastrada para o setor "${setor}"`);
-    return null;
+    throw new Error(`Nenhuma impressora ativa cadastrada para o setor "${setor}"`);
   }
 
   // Import tardio para não quebrar o boot caso a lib ainda não esteja instalada
@@ -25,8 +27,7 @@ async function conectarImpressora(setor) {
 
   const conectado = await printer.isPrinterConnected().catch(() => false);
   if (!conectado) {
-    console.warn(`Impressora "${impressora.nome}" (${impressora.ip}:${impressora.porta}) não respondeu`);
-    return null;
+    throw new Error(`Impressora "${impressora.nome}" (${impressora.ip}:${impressora.porta}) não respondeu`);
   }
 
   return printer;
@@ -49,7 +50,6 @@ const FORMA_PAGAMENTO_LABELS = {
 
 async function imprimirItens(setor, comanda, itens, nomeGarcom) {
   const printer = await conectarImpressora(setor);
-  if (!printer) return;
 
   printer.alignCenter();
   printer.bold(true);
@@ -74,7 +74,6 @@ async function imprimirItens(setor, comanda, itens, nomeGarcom) {
 // Sai por padrão na impressora do bar.
 async function imprimirConta(comanda, itens, valores) {
   const printer = await conectarImpressora('bar');
-  if (!printer) return;
 
   const { subtotal, total, desconto, descontoTipo, descontoValor, pagamentos } = valores;
 

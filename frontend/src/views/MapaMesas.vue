@@ -21,6 +21,22 @@
     </div>
 
     <template v-else>
+      <div v-if="podeVerFalhas && falhasImpressao.length" class="falhas-impressao">
+        <div class="falhas-header">
+          <span class="falhas-icone">⚠️</span>
+          <p class="falhas-titulo">
+            {{ falhasImpressao.length === 1 ? '1 impressão falhou' : `${falhasImpressao.length} impressões falharam` }}
+            — confira se o pedido chegou na cozinha/bar
+          </p>
+        </div>
+        <div class="falhas-lista">
+          <div v-for="f in falhasImpressao" :key="f.id" class="falha-linha">
+            <span>Mesa {{ f.mesa_numero }} · {{ f.setor === 'cozinha' ? 'Cozinha' : 'Bar' }}{{ f.contexto === 'conta' ? ' (conta)' : '' }} · {{ horaFalha(f.criado_em) }}</span>
+            <button :disabled="resolvendoFalha === f.id" @click="resolverFalha(f)">Marcar como resolvido</button>
+          </div>
+        </div>
+      </div>
+
       <div v-if="ehCaixa && sessaoCaixa" class="barra-caixa">
         <div class="barra-caixa-info">
           <span class="barra-caixa-icone">🗄️</span>
@@ -115,15 +131,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../services/api';
 import { useAuthStore } from '../stores/auth';
+import { useUiStore } from '../stores/ui';
 
 const router = useRouter();
 const auth = useAuthStore();
+const ui = useUiStore();
 const podeAbrirMesa = computed(() => ['admin', 'garcom', 'caixa'].includes(auth.usuario?.papel));
 const ehCaixa = computed(() => auth.usuario?.papel === 'caixa');
+const podeVerFalhas = computed(() => ['admin', 'caixa'].includes(auth.usuario?.papel));
+const falhasImpressao = ref([]);
+const resolvendoFalha = ref(null);
 const mesas = ref([]);
 const mesaSelecionada = ref(null);
 const nomeCliente = ref('');
@@ -211,6 +232,29 @@ async function carregarMesas() {
   mesas.value = data;
 }
 
+async function carregarFalhas() {
+  if (!podeVerFalhas.value) return;
+  const { data } = await api.get('/impressoras/falhas');
+  falhasImpressao.value = data;
+}
+
+async function resolverFalha(falha) {
+  resolvendoFalha.value = falha.id;
+  try {
+    await api.post(`/impressoras/falhas/${falha.id}/resolver`);
+    falhasImpressao.value = falhasImpressao.value.filter((f) => f.id !== falha.id);
+  } finally {
+    resolvendoFalha.value = null;
+  }
+}
+
+function horaFalha(criadoEm) {
+  return new Date(criadoEm.replace(' ', 'T') + 'Z').toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function abrirModal(mesa) {
   mesaSelecionada.value = mesa;
   nomeCliente.value = '';
@@ -248,8 +292,10 @@ onMounted(async () => {
   } else {
     await carregarMesas();
   }
+  await carregarFalhas();
   intervaloRelogio = setInterval(() => { agora.value = Date.now(); }, 30000);
 });
+watch(() => ui.falhaImpressaoVersao, () => { carregarFalhas(); });
 onUnmounted(() => clearInterval(intervaloRelogio));
 </script>
 
@@ -337,6 +383,19 @@ onUnmounted(() => clearInterval(intervaloRelogio));
 }
 .btn-abrir-caixa:hover:not(:disabled) { background: #0c5943; }
 .btn-abrir-caixa:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.falhas-impressao {
+  background: #fcebeb; border: 1px solid #e6b8b8; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;
+}
+.falhas-header { display: flex; align-items: center; gap: 10px; }
+.falhas-icone { font-size: 18px; }
+.falhas-titulo { font-size: 14px; font-weight: 600; margin: 0; color: #8a2f2f; }
+.falhas-lista { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.falha-linha {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;
+  font-size: 13px; color: #6b2323; background: white; border-radius: 8px; padding: 8px 12px;
+}
+.falha-linha button { font-size: 12px; padding: 6px 10px; }
 
 .barra-caixa {
   display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;

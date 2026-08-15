@@ -65,4 +65,24 @@ router.put('/:id', exigirPapel('admin'), (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/impressoras/falhas - falhas de impressão ainda não resolvidas (admin/caixa acompanham no dia a dia)
+router.get('/falhas', exigirPapel('admin', 'caixa'), (req, res) => {
+  const falhas = db
+    .prepare(
+      `SELECT * FROM falhas_impressao WHERE restaurante_id = ? AND resolvida_em IS NULL ORDER BY criado_em DESC`
+    )
+    .all(req.usuario.restaurante_id);
+  res.json(falhas);
+});
+
+// POST /api/impressoras/falhas/:id/resolver - marca uma falha como resolvida (ex: reimprimiu na mão)
+router.post('/falhas/:id/resolver', exigirPapel('admin', 'caixa'), (req, res) => {
+  const { id } = req.params;
+  const falha = db.prepare('SELECT * FROM falhas_impressao WHERE id = ? AND restaurante_id = ?').get(id, req.usuario.restaurante_id);
+  if (!falha) return res.status(404).json({ erro: 'Falha não encontrada' });
+
+  db.prepare('UPDATE falhas_impressao SET resolvida_em = CURRENT_TIMESTAMP WHERE id = ?').run(id);
+  res.json({ ok: true });
+});
+
 module.exports = router;

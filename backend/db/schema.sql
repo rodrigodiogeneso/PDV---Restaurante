@@ -130,9 +130,20 @@ CREATE TABLE IF NOT EXISTS auditoria (
   criado_em TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS falhas_impressao (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  restaurante_id INTEGER NOT NULL REFERENCES restaurantes(id),
+  setor TEXT NOT NULL,
+  mesa_numero TEXT,
+  contexto TEXT NOT NULL DEFAULT 'pedido' CHECK (contexto IN ('pedido','conta')),
+  criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+  resolvida_em TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_itens_pedido_setor_status ON itens_pedido(setor, status);
 CREATE INDEX IF NOT EXISTS idx_comandas_mesa ON comandas(mesa_id);
 CREATE INDEX IF NOT EXISTS idx_mesas_restaurante ON mesas(restaurante_id);
 CREATE INDEX IF NOT EXISTS idx_auditoria_criado_em ON auditoria(criado_em);
 CREATE INDEX IF NOT EXISTS idx_pagamentos_comanda ON pagamentos(comanda_id);
+CREATE INDEX IF NOT EXISTS idx_falhas_impressao_restaurante_resolvida ON falhas_impressao(restaurante_id, resolvida_em);
 CREATE INDEX IF NOT EXISTS idx_caixa_sessoes_restaurante_status ON caixa_sessoes(restaurante_id, status);

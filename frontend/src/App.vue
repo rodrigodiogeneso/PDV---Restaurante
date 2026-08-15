@@ -52,6 +52,7 @@ watch(
       if (msg.tipo !== 'impressao_falhou') return;
       const { setor, mesa_numero } = msg.dados;
       ui.mostrarErro(`Falha ao imprimir na ${SETOR_LABEL[setor] || setor} (mesa ${mesa_numero}) — verifique a impressora.`);
+      ui.notificarFalhaImpressao();
     });
   },
   { immediate: true }

@@ -5,6 +5,7 @@ const { imprimirConta } = require('../services/impressao');
 const { exigirPapel } = require('../middleware/auth');
 const { registrar } = require('../services/auditoria');
 const eventos = require('../services/eventos');
+const falhasImpressao = require('../services/falhasImpressao');
 
 // GET /api/mesas - mapa de mesas com status, cliente e tempo aberto
 router.get('/', (req, res) => {
@@ -308,7 +309,9 @@ router.post('/:id/imprimir-conta', exigirPapel('admin', 'garcom', 'caixa'), asyn
   await imprimirConta(comanda, itens, { subtotal, total, desconto, descontoTipo: comanda.desconto_tipo, descontoValor: comanda.desconto_valor, pagamentos }).catch((erro) => {
     console.warn('Falha ao imprimir conta:', erro.message);
     const mesa = db.prepare('SELECT numero FROM mesas WHERE id = ?').get(id);
-    eventos.emitir('impressao_falhou', { setor: 'bar', mesa_numero: mesa?.numero ?? id, contexto: 'conta' });
+    const mesaNumero = mesa?.numero ?? id;
+    falhasImpressao.registrar({ restauranteId: req.usuario.restaurante_id, setor: 'bar', mesaNumero, contexto: 'conta' });
+    eventos.emitir('impressao_falhou', { setor: 'bar', mesa_numero: mesaNumero, contexto: 'conta' });
   });
 
   registrar({

@@ -5,6 +5,7 @@ const { imprimirItens } = require('../services/impressao');
 const { exigirPapel } = require('../middleware/auth');
 const eventos = require('../services/eventos');
 const { registrar } = require('../services/auditoria');
+const falhasImpressao = require('../services/falhasImpressao');
 
 // GET /api/pedidos/comanda/:comandaId - itens de uma comanda
 router.get('/comanda/:comandaId', (req, res) => {
@@ -90,7 +91,9 @@ router.post('/', exigirPapel('admin', 'garcom', 'caixa'), (req, res) => {
   Object.entries(porSetor).forEach(([setor, itensDoSetor]) => {
     imprimirItens(setor, comanda, itensDoSetor, req.usuario.nome).catch((err) => {
       console.error(`Falha ao imprimir no setor ${setor}:`, err.message);
-      eventos.emitir('impressao_falhou', { setor, mesa_numero: mesa?.numero ?? comanda.mesa_id });
+      const mesaNumero = mesa?.numero ?? comanda.mesa_id;
+      falhasImpressao.registrar({ restauranteId: req.usuario.restaurante_id, setor, mesaNumero, contexto: 'pedido' });
+      eventos.emitir('impressao_falhou', { setor, mesa_numero: mesaNumero });
     });
   });
 
