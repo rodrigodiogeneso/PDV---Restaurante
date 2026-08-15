@@ -16,12 +16,13 @@ async function conectarImpressora(setor) {
   }
 
   // Import tardio para não quebrar o boot caso a lib ainda não esteja instalada
-  const { ThermalPrinter, PrinterTypes } = require('node-thermal-printer');
+  const { ThermalPrinter, PrinterTypes, CharacterSet } = require('node-thermal-printer');
 
   const printer = new ThermalPrinter({
     type: PrinterTypes.EPSON,
     interface: `tcp://${impressora.ip}:${impressora.porta}`,
     removeSpecialCharacters: false,
+    characterSet: CharacterSet.PC860_PORTUGUESE,
     options: { timeout: 3000 },
   });
 
